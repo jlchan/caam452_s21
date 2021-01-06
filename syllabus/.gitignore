@@ -1,12 +1,12 @@
 *~
 
-./*/**/*.aux
-./*/**/*.bbl
-./*/**/*.blg
-./*/**/*.spl
-./*/**/*.log
-./*/**/*.out
-./*/**/*.DS_STORE
-./*/**/*.synctex.gz
-./*/**/*.thm
-./*/**/*.bst
+*.aux
+*.bbl
+*.blg
+*.spl
+*.log
+*.out
+*.DS_STORE
+*.synctex.gz
+*.thm
+*.bst
