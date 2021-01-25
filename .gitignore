@@ -26,3 +26,5 @@ Manifest.toml
 # other files
 *.png
 *.gif
+
+.DS_Store
