@@ -1,0 +1,3 @@
+[deps]
+GarbageMath = "f67c446b-8290-4780-88ac-6db8adebcb78"
+UnicodePlots = "b8865327-cd53-5732-bb35-84acbb429228"
