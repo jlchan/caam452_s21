@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.12.17
+# v0.12.18
 
 using Markdown
 using InteractiveUtils
@@ -75,6 +75,9 @@ begin
 	uL(t)  = 0*.75*sin(1*pi*t)
 end;
 
+# ╔═╡ 6bab77f0-6006-11eb-08b4-6b0a33f38472
+md"Let's plot the initial condition below"
+
 # ╔═╡ 1afcd228-3fc1-11eb-127a-b5059e1a0029
 md"""
 # Discretization parameters
@@ -84,18 +87,16 @@ md"""
 md"""
 Number of nodes `N` and timestep `dt`
 
-`N =` $(@bind N NumberField(3:2:200, default = 101))
+`N =` $(@bind N NumberField(3:2:200, default = 201))
 
 `dt =` $(@bind dt NumberField(.0001:.0001:10, default = .01))
 
 Final time = $(@bind FinalTime NumberField(0:.0001:10, default = .25))
 """
 
-# ╔═╡ 9a758898-3fd4-11eb-0718-752c99372d54
-md"Construction of discretization matrices"
-
 # ╔═╡ d323417c-3fb5-11eb-0cdb-655211612ff0
 begin 
+	# Here is the code to construct discretization matrices for our simulation
 	x = LinRange(-1,1,N)
 	h = 2/(N-1) # mesh size
 	K = spdiagm(-1=>-ones(N-1),1=>-ones(N-1),0=>2*ones(N))
@@ -113,6 +114,13 @@ begin
 	Q[1,:] .= 0
 	Q[1,1] = 1
 end;
+
+# ╔═╡ 73588218-6006-11eb-095e-e9c90ff9bbb8
+begin 
+	plot(x,u0.(x),xlim=(-1,1),ylim=(-1,1),lw=3)
+	plot!(title="Initial condition",ratio=1,legend=false)
+	scatter!(x,u0.(x))
+end
 
 # ╔═╡ 3b1b2ad0-3fbe-11eb-0745-2f8aeccfea54
 md"Now we'll solve our PDE until final time $(FinalTime) and animate the results."
@@ -132,28 +140,23 @@ begin
 		bb[1] = uL(t) # impose BC at left endpoint
 		u = A\bb
 
-		plot(x,u,xlim=(-1,1),ylim=(-1,1),lw=3,label="Solution")
+		plot(x,u,xlim=(-1,1),ylim=(-1,1),lw=3)
 		scatter!(x,u,label="")
-		plot!(title="Time=$t",ratio=1)
+		plot!(title="Time=$t",ratio=1,legend=false)
 	end	every 1
 	gif(anim, "fem.gif", fps = 10)
 end
-
-# ╔═╡ d9813424-3fb1-11eb-2f61-0b5abf1991fe
-md"""
-# Package loading code
-"""
 
 # ╔═╡ Cell order:
 # ╟─6ce54252-3fb0-11eb-34e6-978f07a94d99
 # ╟─e6a60308-3fb8-11eb-090f-9d533d92759b
 # ╠═eb538830-3fb8-11eb-1d93-230874209dc7
+# ╟─6bab77f0-6006-11eb-08b4-6b0a33f38472
+# ╟─73588218-6006-11eb-095e-e9c90ff9bbb8
 # ╟─1afcd228-3fc1-11eb-127a-b5059e1a0029
 # ╟─952ca744-3fb7-11eb-20ab-a90257510dfb
-# ╟─9a758898-3fd4-11eb-0718-752c99372d54
-# ╠═d323417c-3fb5-11eb-0cdb-655211612ff0
+# ╟─d323417c-3fb5-11eb-0cdb-655211612ff0
 # ╟─3b1b2ad0-3fbe-11eb-0745-2f8aeccfea54
-# ╠═4b1df9c6-3fbe-11eb-1dcf-3f883d7d92de
-# ╟─d9813424-3fb1-11eb-2f61-0b5abf1991fe
+# ╟─4b1df9c6-3fbe-11eb-1dcf-3f883d7d92de
 # ╟─91615676-4eb1-11eb-2599-9f94046c2a5d
 # ╟─f381d0ce-3faf-11eb-2586-ffe002ea8d9d
