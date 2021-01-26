@@ -37,7 +37,7 @@ md"""
 
 # Simulation of a model PDE 
 
-Let's try to build some intuition for how a PDE behaves. Suppose we have a PDE on ``[-1,1]``
+Let's try to build some intuition for how a PDE behaves. Suppose we have a PDE on ``[-1,1]`` with ``u(x,t)`` as the solution
 
 ```math
 \begin{gather*}
@@ -51,7 +51,7 @@ u(-1,t) = u_L(t), \qquad u'(1,t) = 0
 and initial condition ``u(x,0) = u_0(x)``.
 
 
-Different choices of ``a,b,c`` transition between different types of PDEs. 
+Different choices of ``a,b`` transition between different types of PDEs. 
 
 ## Physical parameters
 
@@ -70,9 +70,9 @@ md"Let's now define a forcing function `f(x,t)`, left boundary data `uL(t)`, and
 
 # ╔═╡ eb538830-3fb8-11eb-1d93-230874209dc7
 begin
-	u0(x)  = (.5*sin(pi*x) - .25*sin(2*pi*x) + .25*sin(4*pi*x))
+	u0(x)  = 0*(.5*sin(pi*x) - .25*sin(2*pi*x) + .25*sin(4*pi*x))
 	f(x,t) = 0*(exp(-100*(x+.75)^2))*(.5*t + sin(2*t))*exp(-.1*t)
-	uL(t)  = 0*.75*sin(1*pi*t)
+	uL(t)  = .75*sin(1*pi*t)
 end;
 
 # ╔═╡ 6bab77f0-6006-11eb-08b4-6b0a33f38472
