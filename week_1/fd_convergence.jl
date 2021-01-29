@@ -12,7 +12,7 @@ D3(u,x,h) = (u(x-2*h) - 6*u(x-h) + 3*u(x) + 2*u(x+h))/(6*h)
 
 include("fdcoeffV.jl")
 x = -2:2
-c = fdcoeffV(1,x[3],x)
+a = fdcoeffV(1,x[3],x) # 1 = order of derivative, x̄, stencil points x
 D4(u,x,h,c) = dot(c,(u(x-2*h),u(x-h),u(x),u(x+h),u(x+2*h)))/h
 
 # function, exact derivative
@@ -27,7 +27,7 @@ for (i,h) in enumerate(hvec)
     err[1][i] = abs(dudx(x) - D1(u,x,h))
     err[2][i] = abs(dudx(x) - D2(u,x,h))
     err[3][i] = abs(dudx(x) - D3(u,x,h))
-    err[4][i] = abs(dudx(x) - D4(u,x,h,c))
+    err[4][i] = abs(dudx(x) - D4(u,x,h,a))
 end
 
 plot(xaxis=:log,yaxis=:log,legend=:bottomright)
