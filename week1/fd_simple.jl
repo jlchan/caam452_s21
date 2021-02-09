@@ -1,6 +1,5 @@
-#####
-##### Define some simple finite difference approximations
-#####
+"This code defines some simple finite difference approximations, applies them to
+approximate u'(x), and compares the result to the exact solution."
 
 # run file by typing "include("fd_simple.jl")", copying and pasting into the REPL, or
 # selecting code and pressing Ctrl/Command-Enter

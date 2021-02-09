@@ -2,6 +2,9 @@ using LinearAlgebra
 using SparseArrays
 using Plots
 
+"This code solves Laplace's equation with Dirichlet boundary conditions using a
+finite difference method."
+
 m = 100 # number of points
 x = LinRange(-1,1,m+2)
 xint = x[2:end-1]

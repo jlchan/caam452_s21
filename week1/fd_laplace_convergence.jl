@@ -2,6 +2,11 @@ using LinearAlgebra
 using SparseArrays
 using Plots
 
+"
+This code runs a convergence test for finite difference methods applied to Laplace's equation.
+The error in different norms is plotted, along with O(h) and O(h^2) slopes for reference.
+"
+
 f(x) = pi^2*sin(pi*x)
 uexact(x) = sin(pi*x)
 

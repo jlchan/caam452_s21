@@ -1,3 +1,6 @@
+"This function computes finite difference stencil coefficients which approximate the
+kth derivative of a function at a point x̄ using a linear combination of evaluations at x_i."
+
 function fdcoeffV(k,x̄,x)
     n = length(x)
     if n <= k

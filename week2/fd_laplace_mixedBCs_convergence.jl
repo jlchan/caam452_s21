@@ -3,6 +3,9 @@ using SparseArrays
 using Plots
 using ForwardDiff
 
+"This code performs a convergence test for two finite difference methods applied to
+Laplace's equation with mixed Dirichlet-Neumann boundary conditions."
+
 # method of manufactured solutions: define the exact solution, then figure out
 # what f,α,β should be to make it the solution to your PDE
 uexact(x) = log(2+sin(pi*x))
@@ -44,13 +47,14 @@ function solve2(m,f,α,β)
     return u,x,xint,h
 end
 
-m = 40
-u1,x,xint1,h = solve1(m,f,α,β)
-u2,x,xint2,h = solve2(m,f,α,β)
-plot(xint1,u1,mark=:dot,markersize=2,label="O(h) solution")
-plot!(xint2,u2,mark=:dot,markersize=2,label="O(h^2) solution")
-plot!(x,uexact.(x),label="Exact solution")
-plot!(leg=:bottomright)
+# # this code plots the solution
+# m = 40
+# u1,x,xint1,h = solve1(m,f,α,β)
+# u2,x,xint2,h = solve2(m,f,α,β)
+# plot(xint1,u1,mark=:dot,markersize=2,label="O(h) solution")
+# plot!(xint2,u2,mark=:dot,markersize=2,label="O(h^2) solution")
+# plot!(x,uexact.(x),label="Exact solution")
+# plot!(leg=:bottomright)
 
 mvec = 2 .^ (2:9)
 hvec = zeros(length(mvec))

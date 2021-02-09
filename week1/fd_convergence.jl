@@ -1,9 +1,9 @@
 using Plots
 using LinearAlgebra
 
-#####
-##### Code to show convergence of errors for different finite difference methods
-#####
+"
+This code shows how errors for different finite difference methods converge as h->0.
+"
 
 # define forward, centered differences, D3 = some other difference approx
 D1(u,x,h) = (u(x+h) - u(x))/h

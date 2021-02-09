@@ -3,6 +3,9 @@ using SparseArrays
 using Plots
 using ForwardDiff
 
+"This code performs a convergence test for two finite difference methods applied to
+Laplace's equation with variable diffusivity κ(x)."
+
 # variable diffusivity
 κ(x) = 1 + .5*sin(pi*x) # assumed κ(x) >= κ_min > 0
 # κ(x) = Float64(1 + (x>0))
