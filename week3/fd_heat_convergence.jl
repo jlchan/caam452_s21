@@ -3,9 +3,9 @@ using SparseArrays
 using Plots
 using ForwardDiff
 
-"This routine runs a convergence test for the heat equation using Backwards Euler
-in time and finite differences in space. The exact solution is generated using the
-method of manufactured solutions."
+"This routine runs a convergence test for the heat equation using either Backwards
+Euler or Crank-Nicolson in time and finite differences in space. The exact solution
+is generated using the method of manufactured solutions."
 
 uexact(x,t) = log(2+sin(pi*x))*exp(-t)*t
 dudx_exact(x,t) = ForwardDiff.derivative(x->uexact(x,t),x)
@@ -16,6 +16,7 @@ u0(x) = uexact(x,0)
 α(t) = uexact(-1,t)
 β(t) = uexact(1,t)
 
+# m = number of grid points
 function build_FD(m,f,α,β)
     x = LinRange(-1,1,m+2)
     xint = x[2:end-1]
@@ -55,18 +56,10 @@ function solve_Crank_Nicolson(m, f, α, β, u0, T, dt)
     for i = 1:Nsteps
         tprev = (i-1)*dt
         t = i*dt
-        u .= (I + .5*dt*A)\((I - .5*dt*A)*u .+ .5*dt.*(F(t)+F(tprev)))
+        u .= (I + .5*dt*A)\((I - .5*dt*A)*u + .5*dt*(F(t)+F(tprev)))
     end
     return u,x,xint,h
 end
-
-# m = 40
-# T = .01
-# dt = T
-# u,x,xint,h = solve_backward_Euler(m, f, α, β, u0, T, dt)
-# plot(xint,u,mark=:dot,label="FD solution")
-# x = LinRange(-1,1,1000)
-# plot!(x,uexact.(x,T),label="Exact solution")
 
 mvec = 2 .^ (2:8)
 hvec = zeros(length(mvec))
@@ -76,7 +69,7 @@ err2 = Float64[]
 for (i,m) in enumerate(mvec)
 
     T = 1.0
-    dt = 2/m
+    dt = 5/m # proportional to h
 
     u,x,xint,h = solve_backward_Euler(m,f,α,β,u0,T,dt)
     push!(err1,maximum(@. abs(uexact(xint,T) - u)))
