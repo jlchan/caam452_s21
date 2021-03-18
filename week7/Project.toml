@@ -1,4 +1,2 @@
 [deps]
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
-SymRCM = "286e6d88-80af-4590-acc9-0001b223b9bd"
-UnicodePlots = "b8865327-cd53-5732-bb35-84acbb429228"

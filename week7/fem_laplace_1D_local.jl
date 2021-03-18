@@ -48,7 +48,7 @@ function impose_Dirichlet_BC!(A,b,i,val)
     A[i,i] = 1.0
 end
 impose_Dirichlet_BC!(A,b,1,α)
-impose_Dirichlet_BC!(A,b,m+2,β)
+# impose_Dirichlet_BC!(A,b,m+2,β)
 
 u = A\b
 plot(x,u,legend=false,mark=:dot,ms=2)
