@@ -26,7 +26,7 @@ function to_rgba(x::UInt32)
     RGBA(r, g, b, a)
 end
 
-# 
+# plotting
 x,y = mesh.point[1,:], mesh.point[2,:]
 z,t = (@. sin(pi*x)*sin(pi*y)), mesh.cell
 img = to_rgba.(Triplot.rasterize(x,y,z,t)')
