@@ -9,9 +9,9 @@ The matrix is assembled locally, and boundary nodes are not removed."
 m = 100 # number of elements
 
 α = 0.0
-β = 0.0
-f(x) = sin(pi*x)
-κ(x) = 1 + (x > 0)
+β = 1.0
+f(x) = 0
+κ(x) = 1# + (x > 0)
 
 # define spatial grid
 x = LinRange(-1,1,m+2) # x_0, x_1, ..., x_m, x_{m+1} = x_0
@@ -49,6 +49,11 @@ function impose_Dirichlet_BC!(A,b,i,val)
 end
 impose_Dirichlet_BC!(A,b,1,α)
 # impose_Dirichlet_BC!(A,b,m+2,β)
+
+function impose_Neumann_BC!(A,b,i,val)
+    b[i] += val
+end
+impose_Neumann_BC!(A,b,m+2,β)
 
 u = A\b
 plot(x,u,legend=false,mark=:dot,ms=2)
