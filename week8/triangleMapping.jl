@@ -26,8 +26,8 @@ function uniform_tri_nodes(N)
 end
 r,s = uniform_tri_nodes(20)
 mean(x) = sum(x)/length(x)
-r = .8*(r .- mean(r)) .+ mean(r)
-s = .8*(s .- mean(s)) .+ mean(s)
+r = .9*(r .- mean(r)) .+ mean(r)
+s = .9*(s .- mean(s)) .+ mean(s)
 
 λ1(r,s) = -(r+s)/2
 λ2(r,s) = (1+s)/2
@@ -38,9 +38,6 @@ dVs() = [-.5 0.0 .5]
 function map_triangle_pts(r,s,x,y)
     return V(r,s)*x,V(r,s)*y
 end
-
-A_local_r = 2*dVr()'*dVr()
-A_local_s = 2*dVs()'*dVs()
 
 function compute_geometric_terms(x,y)
     dxdr,dydr = dVr()*x, dVr()*y
@@ -59,14 +56,15 @@ for e = 1:mesh.n_cell
     Vx = rx*dVr() + sx*dVs()
     Vy = ry*dVr() + sy*dVs()
     ids = mesh.cell[:,e]
-    @. A[ids,ids] += J*(Vx'*Vx + Vy'*Vy)
+    @. A[ids,ids] += 2.0*J*(Vx'*Vx + Vy'*Vy)
     # @show J
 end
 
-scatter(VX,VY)
-for e = 1:mesh.n_cell
-    xv,yv = VX[mesh.cell[:,e]],VY[mesh.cell[:,e]]
-    xe,ye = map_triangle_pts(r,s,xv,yv)
-    scatter!(xe,ye,leg=false,ms=1)
-end
-display(plot!())
+# scatter(VX,VY)
+# for e = 1:mesh.n_cell
+#     xv,yv = VX[mesh.cell[:,e]],VY[mesh.cell[:,e]]
+#     xe,ye = map_triangle_pts(r,s,xv,yv)
+#     zz = V(r,s)*(yv)
+#     scatter!(xe,ye,zz,zcolor=zz,leg=false,ms=1)
+# end
+# display(plot!())
