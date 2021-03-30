@@ -11,9 +11,9 @@ and boundary nodes are not removed."
 m = 50 # number of elements
 
 # α = 0 # Dirichlet BC
-# β = 1 # Neumann BC
-# f(x) = sin(pi*x) #exp(2*sin(pi*x))
-# κ(x) = 1 + (x > 0)*2
+# β = 0 # Neumann BC
+# f(x) = pi^2*sin(pi*x) #exp(2*sin(pi*x))
+# κ(x) = 1
 
 # Manufactured solution
 uexact(x) = log(2+sin(pi*x))

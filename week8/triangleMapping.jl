@@ -3,12 +3,12 @@ using Plots
 using Triplot
 
 poly = polygon_unitSquare()
-# poly = polygon_regular(4)
+# poly = polygon_regular(5)
 # poly = polygon_Lshape()
 mesh = create_mesh(poly, set_area_max=true, quality_meshing=true)
 
 VX,VY = mesh.point[1,:],mesh.point[2,:]
-EToV = mesh.cell
+EToV  = mesh.cell # element-to-vertex mapping
 
 function uniform_tri_nodes(N)
     r1D = LinRange(-1,1,N+1)
@@ -25,9 +25,6 @@ function uniform_tri_nodes(N)
     return r,s
 end
 r,s = uniform_tri_nodes(20)
-mean(x) = sum(x)/length(x)
-r = .9*(r .- mean(r)) .+ mean(r)
-s = .9*(s .- mean(s)) .+ mean(s)
 
 λ1(r,s) = -(r+s)/2
 λ2(r,s) = (1+s)/2
@@ -48,23 +45,23 @@ function compute_geometric_terms(x,y)
     return J, drdx, dsdx, drdy, dsdy
 end
 
-A = spzeros(length(VX),length(VX))
-for e = 1:mesh.n_cell
-    xv,yv = x[mesh.cell[:,e]],y[mesh.cell[:,e]]
-    J,rx,sx,ry,sy = compute_geometric_terms(xv,yv)
-
-    Vx = rx*dVr() + sx*dVs()
-    Vy = ry*dVr() + sy*dVs()
-    ids = mesh.cell[:,e]
-    @. A[ids,ids] += 2.0*J*(Vx'*Vx + Vy'*Vy)
-    # @show J
-end
-
-# scatter(VX,VY)
+# A = spzeros(length(VX),length(VX))
 # for e = 1:mesh.n_cell
-#     xv,yv = VX[mesh.cell[:,e]],VY[mesh.cell[:,e]]
-#     xe,ye = map_triangle_pts(r,s,xv,yv)
-#     zz = V(r,s)*(yv)
-#     scatter!(xe,ye,zz,zcolor=zz,leg=false,ms=1)
+#     xv,yv = x[mesh.cell[:,e]],y[mesh.cell[:,e]]
+#     J,rx,sx,ry,sy = compute_geometric_terms(xv,yv)
+#
+#     Vx = rx*dVr() + sx*dVs()
+#     Vy = ry*dVr() + sy*dVs()
+#     ids = mesh.cell[:,e]
+#     @. A[ids,ids] += 2.0*J*(Vx'*Vx + Vy'*Vy)
+#     # @show J
 # end
-# display(plot!())
+
+scatter(VX,VY)
+for e = 1:mesh.n_cell
+    xv,yv = VX[mesh.cell[:,e]],VY[mesh.cell[:,e]]
+    xe,ye = map_triangle_pts(r,s,xv,yv)
+    zz = V(r,s)*(yv)
+    scatter!(xe,ye,leg=false,ms=1)
+end
+display(plot!())
