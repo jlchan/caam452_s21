@@ -9,8 +9,8 @@ The matrix is assembled locally, and boundary nodes are not removed."
 m = 100 # number of elements
 
 α = 0.0
-β = -1.0
-f(x) = 2*sin(2*pi*x)
+β = 0.0
+f(x) = sin(2*pi*x)
 κ(x) = 1.0 + 2.0*(x > 0)
 
 # define spatial grid
@@ -18,7 +18,7 @@ x = LinRange(-1,1,m+2) # x_0, x_1, ..., x_m, x_{m+1} = x_0
 xint = x[1:end-1]
 h = x[2]-x[1]
 
-x = x + randn(size(x))/(2*m)
+# x = x + randn(size(x))/(2*m)
 # x = @. x + (1+x)*(1-x)/3
 
 # construct local FEM matrix
@@ -36,7 +36,7 @@ for e = 1:m+1
 
     # accumulate local contributions
     A[ids,ids] += A_local * κ(x_e) / h_e
-    b[ids] += h_e * w_e * f(x_e) * [.5;.5]
+    b[ids] += h_e/2 * w_e * f(x_e) * [.5;.5]
 end
 
 # modify for boundary conditions
@@ -52,8 +52,9 @@ function impose_Neumann_BC!(A,b,i,val)
 end
 
 impose_Dirichlet_BC!(A,b,1,α)
-# impose_Dirichlet_BC!(A,b,m+2,β)
-impose_Neumann_BC!(A,b,m+2,β)
+impose_Dirichlet_BC!(A,b,m+2,β)
 
 u = A\b
+
+# uex = @. (1+x)*(1-x)/2
 plot(x,u,legend=false,mark=:dot,ms=2)
