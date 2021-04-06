@@ -71,5 +71,5 @@ function uniform_tri_mesh(Kx,Ky)
                         sk += 1
                 end
         end
-        return VX[:],VY[:],EToV
+        return VX[:],VY[:],Matrix(EToV')
 end

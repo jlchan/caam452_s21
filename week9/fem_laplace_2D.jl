@@ -18,7 +18,6 @@ using SparseArrays
 
 m = 32
 VX,VY,EToV = uniform_tri_mesh(m,m)
-EToV = Matrix(EToV') # conversion
 point_on_boundary = (@. abs(abs(VX)-1) < 10*eps()) .| (@. abs(abs(VY)-1) < 10*eps())
 
 # f(x,y) = sin(pi*x)*sin(pi*y)
