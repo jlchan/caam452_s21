@@ -38,3 +38,38 @@ function plotTriMesh(mesh)
     end
     display(plot!(legend=false,ratio=1))
 end
+
+
+"""
+meshgrid(vx), meshgrid(vx,vy)
+Computes an (x,y)-grid from the vectors (vx,vx). For more information, see the MATLAB documentation.
+
+Copied and pasted directly from [VectorizedRoutines.jl](https://github.com/ChrisRackauckas/VectorizedRoutines.jl/blob/master/src/matlab.jl).
+Using VectorizedRoutines.jl directly causes Pkg versioning issues with SpecialFunctions.jl
+"""
+meshgrid(v::AbstractVector) = meshgrid(v, v)
+function meshgrid(vx::AbstractVector{T}, vy::AbstractVector{T}) where {T}
+    m, n = length(vy), length(vx)
+    vx = reshape(vx, 1, n)
+    vy = reshape(vy, m, 1)
+    (repeat(vx, m, 1), repeat(vy, 1, n))
+end
+
+function uniform_tri_mesh(Kx,Ky)
+        (VY, VX) = meshgrid(LinRange(-1,1,Ky+1),LinRange(-1,1,Kx+1))
+        sk = 1
+        EToV = zeros(Int,2*Kx*Ky,3)
+        for ey = 1:Ky
+                for ex = 1:Kx
+                        id(ex,ey) = ex + (ey-1)*(Kx+1) # index function
+                        id1 = id(ex,ey)
+                        id2 = id(ex+1,ey)
+                        id3 = id(ex+1,ey+1)
+                        id4 = id(ex,ey+1)
+                        EToV[2*sk-1,:] = [id1 id3 id2]
+                        EToV[2*sk,:]   = [id3 id1 id4]
+                        sk += 1
+                end
+        end
+        return VX[:],VY[:],EToV
+end
