@@ -17,7 +17,7 @@ f(x) = 0
 u0(x) = exp(-25*x^2)
 
 # define spatial grid
-x = LinRange(-1,1,m+2) # x_0, x_1, ..., x_m, x_{m+1} = x_0
+x = LinRange(-1,1,m+2)
 
 # construct local FEM matrix
 A = spzeros(m+2,m+2)
