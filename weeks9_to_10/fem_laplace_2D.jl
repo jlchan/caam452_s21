@@ -10,8 +10,8 @@ poly = polygon_unitSquare()
 # poly = polygon_regular(5)
 # poly = polygon_Lshape()
 mesh = create_mesh(poly, quality_meshing=true, add_switches="a0.01q")
-mesh = refine_rg(mesh)
-mesh = refine_rg(mesh)
+# mesh = refine_rg(mesh)
+# mesh = refine_rg(mesh)
 # mesh = refine_rg(mesh)
 
 # some renaming
@@ -20,6 +20,13 @@ VX,VY = mesh.point[1,:],mesh.point[2,:]
 # @. VY = 2*VY-1
 EToV  = mesh.cell  # element-to-vertex mapping: each column contains vertex ids for a different element
 point_on_boundary = mesh.point_marker # 1 if on boundary, 0 otherwise
+
+plotTriMesh(mesh)
+for i = 1:size(mesh.segment,2)
+    eids = mesh.segment[:,i]
+    scatter!(VX[eids],VY[eids])
+end
+display(plot!())
 
 # m = 64
 # VX,VY,EToV = uniform_tri_mesh(m,m)
@@ -64,7 +71,7 @@ function compute_geometric_terms(x,y)
 end
 
 # assemble stiffness matrix
-function assemble_FE_matrix(VX,VY,EToV,point_on_boundary,is_Neumann_point)
+function assemble_FE_matrix(VX,VY,EToV,point_on_boundary)
     num_vertices = length(VX)
     K = size(EToV,2) # number of columns
 
@@ -81,17 +88,10 @@ function assemble_FE_matrix(VX,VY,EToV,point_on_boundary,is_Neumann_point)
         reference_elem_area = 2.0
         @. A[ids,ids] += J*reference_elem_area*(dλdx'*dλdx + dλdy'*dλdy) # (dλdx'*dλdx)_ij = dλj/dx * dλi/dx
 
-        # # midpoint quadrature rule
-        # x_mid,y_mid = sum(xv)/3, sum(yv)/3 # midpoint rule = averages of vertex locations
-        # w_mid = 2.0
-        # b[ids] .+= J*w_mid*f(x_mid,y_mid)*vec(λ(-1/3,-1/3)) # λ at midpt = 1/3 constant
-
-        # exact-for-quadratics quadrature
-        rq = vec([-0.666666666666667 0.333333333333333 -0.666666666666667])
-        sq = vec([-0.666666666666667 -0.666666666666667 0.333333333333333])
-        wq = ones(3)*2/3
-        xq,yq = map_triangle_pts(rq,sq,xv,yv) # x and y coordinates of the quadrature points rq,sq mapped to a physical element
-        b[ids] .+= J*λ(rq,sq)'*(wq.*f.(xq,yq)) # ∑ w_i * f(x_i,y_i) * λ_j(x_i,y_i)
+        # midpoint quadrature rule
+        x_mid,y_mid = sum(xv)/3, sum(yv)/3 # midpoint rule = averages of vertex locations
+        w_mid = 2.0
+        b[ids] .+= J*w_mid*f(x_mid,y_mid)*vec(λ(-1/3,-1/3)) # λ at midpt = 1/3 constant
 
         # # incorporate Neumann BCs
         # boundary_points = findall(point_on_boundary[ids])
