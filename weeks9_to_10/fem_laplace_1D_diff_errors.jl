@@ -7,7 +7,7 @@ using FastGaussQuadrature # more accurate quadrature
 "This routine solves Poisson's equation -u''(x) = f(x) in weak form using piecewise
 linear finite element methods. It's used to illustrate convergence in different norms."
 
-m = 25 # number of elements
+m = 200 # number of elements
 
 # Manufactured solution
 uexact(x) = log(2+sin(4*pi*x))
@@ -18,13 +18,14 @@ f(x) = -ForwardDiff.derivative(dudx_exact,x) # -d/dx (κ(x)*du/dx) = f
 
 # define spatial grid
 x = LinRange(-1,1,m+2) # x_0, x_1, ..., x_m, x_{m+1} = x_0
-x = @. x + randn() / (2*m) # randomly perturb nodes
-x[1] = -1; x[end] = 1 # reset endpoints
+# x = @. x + randn() / (2*m) # randomly perturb nodes
+# x[1] = -1; x[end] = 1 # reset endpoints
 
 # define local FEM basis
 rq,wq = gausslegendre(100) # define overkill-accurate Gauss quadrature
 λ(r) = [(1 .-r)./2 (1 .+r)./2]
-dλ(r) = [-.5*ones(length(r)) .5*ones(length(r))]
+#dλ(r) = [-.5*ones(length(r)) .5*ones(length(r))]
+dλ(r) = [-.5 .5]
 map_point(x,a,b) = a + (b-a) * (1+x)/2 # maps x ∈ [-1,1] to interval [a,b]
 
 "∫u' * ϕ_i' = ∫f(x)*ϕ_i(x)"
@@ -67,3 +68,24 @@ nodal_err = abs.(u - uexact.(x))
 plot(x,u,mark=:dot,ms=3,legend=false,title="Max error at nodes = $(maximum(nodal_err))")
 xfine = LinRange(-1,1,1000)
 plot!(xfine,uexact.(xfine),legend=false)
+
+# compute H1 and L2 errors
+function compute_error(u,m,x,rq,wq)
+    H1_err2 = 0.0
+    L2_err2 = 0.0
+    for e = 1:m+1
+        ids = e:e+1
+        h_e = x[e+1]-x[e]
+        rx = 2 / h_e
+        xq = map_point.(rq,x[e],x[e+1])
+        dudx_err = rx * dλ(rq)*u[ids] .- dudx_exact.(xq)
+        H1_err2 += h_e / 2 * dot(wq, dudx_err.^2)
+
+        u_err = λ(rq)*u[ids] - uexact.(xq) # ∫(u-uexact)^2
+        L2_err2 += h_e / 2 * dot(wq, u_err.^2)
+    end
+    return sqrt(H1_err2), sqrt(L2_err2)
+end
+H1_err,L2_err = compute_error(u,m,x,rq,wq)
+@show H1_err # will be proportional to O(h)
+@show L2_err

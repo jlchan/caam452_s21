@@ -6,35 +6,48 @@ using SparseArrays
 using ForwardDiff
 include("./TriFEMUtils.jl") # plotting and misc routines
 
+mesh = create_mesh(polygon_unitSquare(), quality_meshing=true, add_switches="penva0.001q") # switches
+x,y = mesh.point[1,:],mesh.point[2,:]
+scatter(x,y)
+scatter!(x[mesh.point_marker .== 1],y[mesh.point_marker .== 1],leg=false,mark=:square,ms=3)
+
+mesh = refine_rg(mesh)
+x,y = mesh.point[1,:],mesh.point[2,:]
+scatter(x,y)
+scatter!(x[mesh.point_marker .== 1],y[mesh.point_marker .== 1],leg=false,mark=:square,ms=3)
+
+
 poly = polygon_unitSquare()
 # poly = polygon_regular(5)
 # poly = polygon_Lshape()
 # mesh = create_mesh(poly, quality_meshing=true, set_area_max=true)
-mesh = create_mesh(poly, quality_meshing=true, add_switches="a0.01q") # a0.01 = max triangle area of .01
-for i = 1:2
+mesh = create_mesh(poly, quality_meshing=true, add_switches="penva0.05q") # switches
+num_refinements = 1
+for i = 1:num_refinements
     global mesh
-    mesh = refine_rg(mesh) # refine the entire mesh
+    mesh = refine(mesh, "rpenva0.05q") # refine the entire mesh
 end
+
+# manufactured solution
+uexact(x,y) = exp(sin(1+pi*x)*sin(pi*y))
+uBC(x,y) = uexact(x,y)
+dudx(x,y) = ForwardDiff.derivative(x->uexact(x,y),x)
+dudy(x,y) = ForwardDiff.derivative(y->uexact(x,y),y)
+f(x,y) = -(ForwardDiff.derivative(x->dudx(x,y),x) +
+           ForwardDiff.derivative(y->dudy(x,y),y)) # -(du^2/dx^2 + du^2/dy^2)
+
+# define Dirichlet and Neumann boundaries
+on_Neumann_boundary(x,y) = x ≈ 1 && y > 0 && y < 1 # right face x = 1 (excluding corners)
+on_Dirichlet_boundary(x,y) = !on_Neumann_boundary(x,y) # Dirichlet boundary = everywhere else
+∇u_dot_n(x,y) = dudx(x,y) # note that n = [1,0] on the Neumann face
 
 # ordering of reference element vertices
 # 3
 # |`.
 # 1--2
 reference_vertices = [[-1,1,-1],[-1,-1,1]] # stored as [r,s]
-reference_face_indices = [[1,2],[2,3],[1,3]]
-boundary_indices, boundary_faces = get_boundary_info(reference_face_indices,mesh)
-
-uexact(x,y) = exp(sin(1+pi*x)*sin(pi*y))
-uBC(x,y) = uexact(x,y)
-dudx(x,y) = ForwardDiff.derivative(x->uexact(x,y),x)
-dudy(x,y) = ForwardDiff.derivative(y->uexact(x,y),y)
-f(x,y) = -(ForwardDiff.derivative(x->dudx(x,y),x) +
-           ForwardDiff.derivative(y->dudy(x,y),y)) # -du^2/dx^2 - du^2/dy^2
-
-# define Dirichlet and Neumann boundaries
-on_Neumann_boundary(x,y) = x ≈ 1 && y > 0 && y < 1 # exclude corners
-on_Dirichlet_boundary(x,y) = !on_Neumann_boundary(x,y)
-∇u_dot_n(x,y) = dudx(x,y) # note that n = [1,0] on the Neumann face
+reference_face_indices = [[1,2],[2,3],[1,3]] # ordering of faces for the reference element
+boundary_indices, boundary_faces = get_boundary_info(reference_face_indices, mesh)
 
 # define reference basis functions
 λ1(r,s) = -(r+s)/2
@@ -78,7 +91,7 @@ function assemble_FE_matrix(mesh,boundary_indices,boundary_faces,
         # midpoint quadrature rule
         x_mid,y_mid = sum(xv)/3, sum(yv)/3 # midpoint rule = averages of vertex locations
         w_mid = 2.0
-        b[ids] .+= J*w_mid*f(x_mid,y_mid)*vec(λ(-1/3,-1/3)) # λ at midpt = 1/3 constant
+        b[ids] .+= J*vec(λ(-1/3,-1/3))*(w_mid.*f(x_mid,y_mid)) # λ at midpt = 1/3 constant
     end
 
     # contributions from Neumann BCs
@@ -94,7 +107,7 @@ function assemble_FE_matrix(mesh,boundary_indices,boundary_faces,
 
             ids = EToV[:,e]
             face_length = sqrt((xf[1]-xf[2])^2 + (yf[1]-yf[2])^2)
-            b[ids] .+= face_length/2 * w_mid * vec(λ(r_mid,s_mid)) * ∇u_dot_n(x_mid,y_mid)
+            b[ids] .+= face_length/2 * vec(λ(r_mid,s_mid)) * w_mid * ∇u_dot_n(x_mid,y_mid) # ∫ ∇u⋅n ϕ_i on each Neumann face
         end
     end
 
@@ -102,7 +115,7 @@ function assemble_FE_matrix(mesh,boundary_indices,boundary_faces,
     for i in boundary_indices
         xi,yi = VX[i],VY[i]
         if on_Dirichlet_boundary(xi,yi)
-            b -= vec(A[:,i]*uBC(xi,yi))
+            b -= Vector(A[:,i]*uBC(xi,yi))
             A[:,i] .= 0
             A[i,:] .= 0
             A[i,i] = 1.0
@@ -114,7 +127,7 @@ function assemble_FE_matrix(mesh,boundary_indices,boundary_faces,
             b[i] = uBC(xi,yi)
         end
     end
-    return A,Vector(b)
+    return A,b
 end
 
 A,b = assemble_FE_matrix(mesh,boundary_indices,boundary_faces,
@@ -122,5 +135,5 @@ A,b = assemble_FE_matrix(mesh,boundary_indices,boundary_faces,
 u = A\b
 VX,VY,EToV = unpack_mesh_info(mesh)
 @show maximum(abs.(u .- uexact.(VX,VY)))
-triplot(VX,VY,u .- uexact.(VX,VY),EToV)
+# triplot(VX,VY,u .- uexact.(VX,VY),EToV)
 # triplot(VX,VY,uexact.(VX,VY),EToV)
