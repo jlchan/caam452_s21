@@ -2,15 +2,15 @@ using LinearAlgebra
 using SparseArrays
 using Plots
 using ForwardDiff
-using FastGaussQuadrature
+using FastGaussQuadrature # more accurate quadrature
 
 "This routine solves Poisson's equation -u''(x) = f(x) in weak form using piecewise
 linear finite element methods. It's used to illustrate convergence in different norms."
 
-m = 100 # number of elements
+m = 25 # number of elements
 
 # Manufactured solution
-uexact(x) = log(2+sin(pi*x))
+uexact(x) = log(2+sin(4*pi*x))
 dudx_exact(x) = ForwardDiff.derivative(uexact,x)
 f(x) = -ForwardDiff.derivative(dudx_exact,x) # -d/dx (κ(x)*du/dx) = f
 α = uexact(-1)
@@ -18,15 +18,16 @@ f(x) = -ForwardDiff.derivative(dudx_exact,x) # -d/dx (κ(x)*du/dx) = f
 
 # define spatial grid
 x = LinRange(-1,1,m+2) # x_0, x_1, ..., x_m, x_{m+1} = x_0
-# x = @. x + randn() / (2*m) # randomly perturb nodes
-# x[1] = -1; x[end] = 1 # reset endpoints
+x = @. x + randn() / (2*m) # randomly perturb nodes
+x[1] = -1; x[end] = 1 # reset endpoints
 
 # define local FEM basis
+rq,wq = gausslegendre(100) # define overkill-accurate Gauss quadrature
 λ(r) = [(1 .-r)./2 (1 .+r)./2]
 dλ(r) = [-.5*ones(length(r)) .5*ones(length(r))]
-rq,wq = gausslegendre(10) # define overkill-accurate Gauss quadrature
 map_point(x,a,b) = a + (b-a) * (1+x)/2 # maps x ∈ [-1,1] to interval [a,b]
 
+"∫u' * ϕ_i' = ∫f(x)*ϕ_i(x)"
 A = spzeros(m+2,m+2)
 A_local = [1 -1;-1 1]
 b = zeros(m+2)
@@ -37,12 +38,12 @@ for e = 1:m+1 # loop over the intervals
     x_midpt = .5*(x[e+1]+x[e])
     A[ids,ids] .+= A_local * 1/h_e
 
-    # # one point Gauss quadrature
+    # # one point midpoint quadrature
     # b[ids] .+= h_e / 2.0 * f(.5*(x[e]+x[e+1])) # f(.5*(x_i+x_i+1))
 
     # higher accuracy Gauss quadrature
     xq = map_point.(rq,x[e],x[e+1])
-    b[ids] .+= h_e / 2.0 * λ(rq)'*(wq.*f.(xq))
+    b[ids] .+= h_e / 2.0 * λ(rq)'*(wq.*f.(xq)) # ∑_k f(x_k) * w_k * ϕ_i(x_k)
 end
 
 # impose Dirichlet BCs on both sides
@@ -63,6 +64,6 @@ A[m+2,m+2] = 1
 u = A\Vector(b̃)
 
 nodal_err = abs.(u - uexact.(x))
-plot(x,u,mark=:dot,legend=false,title="Max error at nodes = $(maximum(nodal_err))")
+plot(x,u,mark=:dot,ms=3,legend=false,title="Max error at nodes = $(maximum(nodal_err))")
 xfine = LinRange(-1,1,1000)
 plot!(xfine,uexact.(xfine),legend=false)

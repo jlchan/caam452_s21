@@ -30,15 +30,52 @@ end
 
 function plotTriMesh(mesh)
     x,y = mesh.point[1,:], mesh.point[2,:]
-
-    plot() # init plot
+    xmesh = Float64[]
+    ymesh = Float64[]
     for vertex_ids in eachcol(mesh.cell)
         ids = vcat(vertex_ids, vertex_ids[1])
-        plot!(x[ids],y[ids],linecolor=:black)
+        append!(xmesh,[x[ids];NaN])
+        append!(ymesh,[y[ids];NaN])
     end
-    display(plot!(legend=false,ratio=1))
+    display(plot(xmesh,ymesh,linecolor=:black,legend=false,ratio=1))
 end
 
+# returns vertex coordinates and element-to-vertex connectivities
+function unpack_mesh_info(mesh)
+    VX,VY = mesh.point[1,:],mesh.point[2,:]
+    EToV  = mesh.cell  # element-to-vertex mapping: each column contains vertex ids for a different element
+    return VX,VY,EToV
+end
+
+function map_triangle_pts(r,s,x,y)
+    return λ(r,s)*x, λ(r,s)*y
+end
+
+# get list of boundary indices (vector of indices) and boundary faces (stored as list of tuples (f=face,e=element))
+function get_boundary_info(reference_face_indices,mesh)
+    is_point_on_boundary = mesh.point_marker # 1 if on boundary, 0 otherwise
+    is_boundary_face = find_boundary_faces(reference_face_indices,mesh)
+    VX,VY,_ = unpack_mesh_info(mesh) # "_" just discards the last argument
+    x_boundary,y_boundary = VX[is_point_on_boundary .== 1], VY[is_point_on_boundary .== 1]
+    boundary_indices = findall(vec(is_point_on_boundary) .== 1)
+    boundary_faces = Tuple.(findall(is_boundary_face .== 1))
+    return boundary_indices,boundary_faces
+end
+
+# loop through faces and look for matches
+function find_boundary_faces(reference_face_indices,mesh)
+    num_elements = size(mesh.cell,2)
+    is_boundary_face = zeros(Int,3,num_elements)
+    for e = 1:num_elements
+        for f = 1:3
+            face_vertices = mesh.cell[reference_face_indices[f],e]
+            if sort(face_vertices) in sort.(eachcol(mesh.segment))
+                 is_boundary_face[f,e] = 1
+            end
+        end
+    end
+    return is_boundary_face
+end
 
 """
 meshgrid(vx), meshgrid(vx,vy)
