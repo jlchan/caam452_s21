@@ -6,26 +6,15 @@ using SparseArrays
 using ForwardDiff
 include("./TriFEMUtils.jl") # plotting and misc routines
 
-mesh = create_mesh(polygon_unitSquare(), quality_meshing=true, add_switches="penva0.001q") # switches
-x,y = mesh.point[1,:],mesh.point[2,:]
-scatter(x,y)
-scatter!(x[mesh.point_marker .== 1],y[mesh.point_marker .== 1],leg=false,mark=:square,ms=3)
-
-mesh = refine_rg(mesh)
-x,y = mesh.point[1,:],mesh.point[2,:]
-scatter(x,y)
-scatter!(x[mesh.point_marker .== 1],y[mesh.point_marker .== 1],leg=false,mark=:square,ms=3)
-
-
 poly = polygon_unitSquare()
 # poly = polygon_regular(5)
 # poly = polygon_Lshape()
 # mesh = create_mesh(poly, quality_meshing=true, set_area_max=true)
 mesh = create_mesh(poly, quality_meshing=true, add_switches="penva0.05q") # switches
-num_refinements = 1
+num_refinements = 2
 for i = 1:num_refinements
     global mesh
-    mesh = refine(mesh, "rpenva0.05q") # refine the entire mesh
+    mesh = refine(mesh) # refine the entire mesh
 end
 
 # manufactured solution
