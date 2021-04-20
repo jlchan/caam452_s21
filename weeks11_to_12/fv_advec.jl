@@ -12,7 +12,7 @@ xv = LinRange(-1,1,m+2)
 h = xv[2]-xv[1]
 x = xv[1:end-1] .+ h/2 # m+1 cell centers
 
-dt = .99*h # timestep
+dt = .9*h # timestep
 T = 10.0 # final time
 
 # initial condition and forcing

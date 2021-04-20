@@ -213,23 +213,4 @@ for i = 1:Nsteps
     end
 end #every 5
 
-# function compute_L2_err(u,mesh)
-#     L2err2 = 0.0
-#     for e = 1:mesh.n_cell
-#         ids = EToV[:,e] # vertex ids = local to global index maps
-#         xv,yv = VX[ids],VY[ids]
-#
-#         # quadrature rule
-#         xq,yq = map_triangle_pts(rq,sq,xv,yv)
-#         err = λ(rq,sq)*u[ids] - uexact.(xq,yq)
-#
-#         J,_ = compute_geometric_terms(xv,yv)
-#         L2err2_local = J*dot(wq,err.^2)
-#         L2err2 += L2err2_local
-#     end
-#     return sqrt(L2err2)
-# end
-# L2err = compute_L2_err(u,mesh)
-# @show L2err
-
 # triplot(VX,VY,uexact.(VX,VY),EToV)
