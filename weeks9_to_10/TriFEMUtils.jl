@@ -55,8 +55,6 @@ end
 function get_boundary_info(reference_face_indices,mesh)
     is_point_on_boundary = mesh.point_marker # 1 if on boundary, 0 otherwise
     is_boundary_face = find_boundary_faces(reference_face_indices,mesh)
-    VX,VY,_ = unpack_mesh_info(mesh) # "_" just discards the last argument
-    x_boundary,y_boundary = VX[is_point_on_boundary .== 1], VY[is_point_on_boundary .== 1]
     boundary_indices = findall(vec(is_point_on_boundary) .== 1)
     boundary_faces = Tuple.(findall(is_boundary_face .== 1))
     return boundary_indices,boundary_faces

@@ -4,18 +4,15 @@ using Triplot
 using LinearAlgebra
 using SparseArrays
 using ForwardDiff
+using UnPack
 include("./TriFEMUtils.jl") # plotting and misc routines
 
 poly = polygon_unitSquare()
 # poly = polygon_regular(5)
 # poly = polygon_Lshape()
-# mesh = create_mesh(poly, quality_meshing=true, set_area_max=true)
-mesh = create_mesh(poly, quality_meshing=true, add_switches="penva0.05q") # switches
-num_refinements = 2
-for i = 1:num_refinements
-    global mesh
-    mesh = refine(mesh) # refine the entire mesh
-end
+max_triangle_area = .05/64
+mesh = create_mesh(poly, quality_meshing=true,
+                   add_switches="penva"*string(max_triangle_area)*"q") # switches
 
 # manufactured solution
 uexact(x,y) = exp(sin(1+pi*x)*sin(pi*y))
@@ -36,7 +33,7 @@ on_Dirichlet_boundary(x,y) = !on_Neumann_boundary(x,y) # Dirichlet boundary = ev
 # 1--2
 reference_vertices = [[-1,1,-1],[-1,-1,1]] # stored as [r,s]
 reference_face_indices = [[1,2],[2,3],[1,3]] # ordering of faces for the reference element
-boundary_indices, boundary_faces = get_boundary_info(reference_face_indices, mesh)
+reference_elem_info = (;reference_face_indices,reference_vertices)
 
 # define reference basis functions
 λ1(r,s) = -(r+s)/2
@@ -58,8 +55,7 @@ function compute_geometric_terms(x,y)
 end
 
 # assemble stiffness matrix and RHS vector
-function assemble_FE_matrix(mesh,boundary_indices,boundary_faces,
-                            reference_face_indices,reference_vertices)
+function assemble_FE_matrix(mesh)
     VX,VY,EToV = unpack_mesh_info(mesh)
     num_vertices = length(VX)
     num_elements = size(EToV,2) # number of elements = of columns
@@ -82,13 +78,21 @@ function assemble_FE_matrix(mesh,boundary_indices,boundary_faces,
         w_mid = 2.0
         b[ids] .+= J*vec(λ(-1/3,-1/3))*(w_mid.*f(x_mid,y_mid)) # λ at midpt = 1/3 constant
     end
+    return A,b
+end
 
+function impose_Neumann_BCs!(b,mesh,reference_elem_info)
+
+    @unpack reference_face_indices, reference_vertices = reference_elem_info
+    VX,VY,EToV = unpack_mesh_info(mesh)
+    boundary_indices, boundary_faces = get_boundary_info(reference_face_indices, mesh)
     # contributions from Neumann BCs
     for (f,e) in boundary_faces
         ref_fids = reference_face_indices[f]
         fids = EToV[ref_fids,e]
         xf,yf = VX[fids],VY[fids]
         x_mid,y_mid = sum(xf)/2,sum(yf)/2
+
         if on_Neumann_boundary(x_mid,y_mid)
             r,s = reference_vertices
             r_mid, s_mid = sum(r[ref_fids])/2, sum(s[ref_fids])/2
@@ -99,6 +103,13 @@ function assemble_FE_matrix(mesh,boundary_indices,boundary_faces,
             b[ids] .+= face_length/2 * vec(λ(r_mid,s_mid)) * w_mid * ∇u_dot_n(x_mid,y_mid) # ∫ ∇u⋅n ϕ_i on each Neumann face
         end
     end
+    return b
+end
+function impose_Dirichlet_BCs!(A,b,mesh,reference_elem_info)
+
+    @unpack reference_face_indices, reference_vertices = reference_elem_info
+    VX,VY,EToV = unpack_mesh_info(mesh)
+    boundary_indices, boundary_faces = get_boundary_info(reference_face_indices, mesh)
 
     # impose Dirichlet BCs
     for i in boundary_indices
@@ -119,10 +130,11 @@ function assemble_FE_matrix(mesh,boundary_indices,boundary_faces,
     return A,b
 end
 
-A,b = assemble_FE_matrix(mesh,boundary_indices,boundary_faces,
-                         reference_face_indices, reference_vertices)
+A,b = assemble_FE_matrix(mesh)
+b   = impose_Neumann_BCs!(b,mesh,reference_elem_info)
+A,b = impose_Dirichlet_BCs!(A,b,mesh,reference_elem_info)
 u = A\b
 VX,VY,EToV = unpack_mesh_info(mesh)
 @show maximum(abs.(u .- uexact.(VX,VY)))
-# triplot(VX,VY,u .- uexact.(VX,VY),EToV)
+triplot(VX,VY,u .- uexact.(VX,VY),EToV)
 # triplot(VX,VY,uexact.(VX,VY),EToV)
