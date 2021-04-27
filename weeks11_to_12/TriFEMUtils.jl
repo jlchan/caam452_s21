@@ -1,3 +1,4 @@
+using UnPack  # for convenience @unpack macro
 
 function to_rgba(x::UInt32)
     a = ((x & 0xff000000)>>24)/255
@@ -28,27 +29,30 @@ function uniform_tri_nodes(N)
     return r,s
 end
 
-function plotTriMesh(mesh)
+function plotTriMesh(mesh::TriMesh)
     x,y = mesh.point[1,:], mesh.point[2,:]
+    plotTriMesh(x,y,mesh.cell)
+end
+
+function plotTriMesh(mesh)
+    @unpack VX,VY,EToV = mesh
     xmesh = Float64[]
     ymesh = Float64[]
-    for vertex_ids in eachcol(mesh.cell)
+    for vertex_ids in eachcol(EToV)
         ids = vcat(vertex_ids, vertex_ids[1])
-        append!(xmesh,[x[ids];NaN])
-        append!(ymesh,[y[ids];NaN])
+        append!(xmesh,[VX[ids];NaN])
+        append!(ymesh,[VY[ids];NaN])
     end
     display(plot(xmesh,ymesh,linecolor=:black,legend=false,ratio=1))
 end
 
 # returns vertex coordinates and element-to-vertex connectivities
-function unpack_mesh_info(mesh)
+function unpack_mesh_info(mesh::TriMesh)
     VX,VY = mesh.point[1,:],mesh.point[2,:]
     EToV  = mesh.cell  # element-to-vertex mapping: each column contains vertex ids for a different element
     return VX,VY,EToV
 end
-unpack_mesh_info(mesh::Tuple) = mesh
-
-
+unpack_mesh_info(mesh) = mesh
 
 function map_triangle_pts(r,s,x,y)
     return λ(r,s)*x, λ(r,s)*y

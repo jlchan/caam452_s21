@@ -4,11 +4,10 @@ using Triplot
 using LinearAlgebra
 using SparseArrays
 using ForwardDiff
-# using NodesAndModes # for triangle quadrature rules
-using UnPack  # for convenience @unpack macro
+
 include("./TriFEMUtils.jl") # plotting and misc routines
 
-K1D = 128 # num elements in each direction
+K1D = 16 # num elements in each direction
 mesh = uniform_tri_mesh(K1D,K1D)
 boundary_indices = get_boundary_info(mesh)
 
@@ -54,11 +53,7 @@ function assemble_FE_matrix(mesh)
     num_elements = size(EToV,2) # number of elements = of columns
 
     rq,sq,wq = 1/3,1/3,2.0
-    # rq = [-2/3; 1/3; -2/3]
-    # sq = [-2/3;-2/3; 1/3]
-    # wq = 2/3 * ones(3)
-    # rq,sq,wq = NodesAndModes.quad_nodes(Tri(),3)
-
+    
     A = spzeros(num_vertices, num_vertices)
     b = zeros(num_vertices)
     for e = 1:num_elements # loop through all elements
