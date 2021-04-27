@@ -4,33 +4,20 @@ using Triplot
 using LinearAlgebra
 using SparseArrays
 using ForwardDiff
-using NodesAndModes # for triangle quadrature rules
 using UnPack  # for convenience @unpack macro
 include("./TriFEMUtils.jl") # plotting and misc routines
 
 poly = polygon_unitSquare()
 # poly = polygon_regular(5)
-# poly = polygon_Lshape()
-max_triangle_area = .05/64
+poly = polygon_Lshape()
+num_refinements = 3
+max_triangle_area = .05/(4^num_refinements)
 mesh = create_mesh(poly, quality_meshing=true,
                    add_switches="penva"*string(max_triangle_area)*"q") # switches
 
-# # manufactured solution
-# uexact(x,y) = exp(sin(1+pi*x)*sin(pi*y))
-# dudx(x,y) = ForwardDiff.derivative(x->uexact(x,y),x)
-# dudy(x,y) = ForwardDiff.derivative(y->uexact(x,y),y)
-# f(x,y) = -(ForwardDiff.derivative(x->dudx(x,y),x) +
-#            ForwardDiff.derivative(y->dudy(x,y),y)) # -(du^2/dx^2 + du^2/dy^2)
-#
-# # define Dirichlet and Neumann boundaries
-# on_Neumann(x,y)   = x ≈ 1 && y > 0 && y < 1 # right face x = 1 (excluding corners)
-# on_Dirichlet(x,y) = !on_Neumann(x,y) # Dirichlet boundary = everywhere else
-# u_Dirichlet(x,y)  = uexact(x,y)
-# ∇u_dot_n(x,y)     = dudx(x,y) # note that n = [1,0] on the Neumann face
-
 # new problem
-f(x,y) = 0.0
-on_Neumann(x,y)   = x ≈ 1 && y > 0 && y < 1 # right face x = 1 (excluding corners)
+f(x,y) = exp(sin(1+pi*x)*sin(pi*y))
+on_Neumann(x,y)   = x ≈ 1 && y > 0 && y < .5 # right face x = 1 (excluding corners)
 on_Dirichlet(x,y) = !on_Neumann(x,y) # Dirichlet boundary = everywhere else
 u_Dirichlet(x,y)  = 0.0
 ∇u_dot_n(x,y)     = 0.0 # note that n = [1,0] on the Neumann face
@@ -70,8 +57,7 @@ function assemble_FE_matrix(mesh)
     num_elements = size(EToV,2) # number of elements = of columns
 
     # rq,sq,wq = 1/3,1/3,2.0
-    # rq,sq,wq = quad_nodes(Tri(),1)
-    rq,sq,wq = [-2/3; 1/3; -2/3], [-2/3; -2/3; 1/3], 2/3 * ones(3)
+    rq,sq,wq = [-2/3; 1/3; -2/3], [-2/3; -2/3; 1/3], 2/3 * ones(3) # 3 point rule - Gockenbach
 
     A = spzeros(num_vertices, num_vertices)
     M = spzeros(num_vertices, num_vertices)
@@ -87,8 +73,8 @@ function assemble_FE_matrix(mesh)
         reference_elem_area = 2.0
         @. A[ids,ids] += J*reference_elem_area*(dλdx'*dλdx + dλdy'*dλdy) # (dλdx'*dλdx)_ij = dλj/dx * dλi/dx
 
-        # assemble mass matrix using quadrature
-        M[ids,ids] .+= J*reference_elem_area*(λ(rq,sq)'*Diagonal(wq)*λ(rq,sq))
+        # assemble mass matrix using quadrature: ∫ϕ_j * ϕ_i = integrals of quadratic
+        M[ids,ids] .+= J*reference_elem_area*(λ(rq,sq)'*Diagonal(wq)*λ(rq,sq)) # M = V^T * diag(weights) * V
 
         # quadrature rule
         xq,yq = map_triangle_pts(rq,sq,xv,yv)
@@ -146,7 +132,6 @@ function compute_Dirichlet_BCs(A,mesh,ref_elem_info,on_Dirichlet_boundary,u_Diri
 
     num_vertices = length(VX)
     b = zeros(num_vertices)
-
     # impose Dirichlet BCs
     for i in boundary_indices
         xi,yi = VX[i],VY[i]
@@ -156,6 +141,7 @@ function compute_Dirichlet_BCs(A,mesh,ref_elem_info,on_Dirichlet_boundary,u_Diri
     end
     return b
 end
+# modifies the arguments
 function constrain_Dirichlet_nodes!(b,mesh,ref_elem_info,on_Dirichlet_boundary,u_Dirichlet)
     @unpack reference_face_indices, reference_vertices = ref_elem_info
     VX,VY,EToV = unpack_mesh_info(mesh)
@@ -169,48 +155,45 @@ function constrain_Dirichlet_nodes!(b,mesh,ref_elem_info,on_Dirichlet_boundary,u
     end
 end
 
-
 M,A,b = assemble_FE_matrix(mesh)
 
-# # Poisson
-# b_Neumann = compute_Neumann_BCs(mesh,ref_elem_info,on_Neumann,∇u_dot_n)
-# b_Dirichlet = compute_Dirichlet_BCs(A,mesh,ref_elem_info,on_Dirichlet,u_Dirichlet)
-# b += b_Neumann + b_Dirichlet
-# constrain_Dirichlet_nodes!(b,mesh,ref_elem_info,on_Dirichlet,u_Dirichlet)
-# modify_matrix_Dirichlet_BCs!(A,mesh,ref_elem_info,on_Dirichlet)
-# u = A\b
-# VX,VY,EToV = unpack_mesh_info(mesh)
-# @show maximum(abs.(u .- uexact.(VX,VY)))
-# triplot(VX,VY,u .- uexact.(VX,VY),EToV)
-
+# set up timestepping parameters
 Δt = .001
-T = .2
+T = .5
 
-# create/prefactor matrix
-C = (M + .5*Δt*A) # Crank-Nicolson
-# compute BC contributions
-b_Neumann = compute_Neumann_BCs(mesh,ref_elem_info,on_Neumann,∇u_dot_n)
-b_Dirichlet = compute_Dirichlet_BCs(C,mesh,ref_elem_info,on_Dirichlet,u_Dirichlet)
+# create/prefactor Crank-Nicolson matrix
+C = (M + .5*Δt*A)
 modify_matrix_Dirichlet_BCs!(C,mesh,ref_elem_info,on_Dirichlet)
-C = cholesky(Symmetric(C))
+C = cholesky(Symmetric(C)) # speed up solution of C\b
+
+# precompute BC contributions
+b_Neumann = compute_Neumann_BCs(mesh,ref_elem_info,on_Neumann,∇u_dot_n)
+b_Dirichlet = compute_Dirichlet_BCs(M+.5*Δt*A,mesh,ref_elem_info,on_Dirichlet,u_Dirichlet)
 
 Nsteps = ceil(T/Δt)
 Δt = T/Nsteps
+VX,VY,EToV = unpack_mesh_info(mesh)
 u = u0.(VX,VY)
 plot()
 VX,VY,EToV = unpack_mesh_info(mesh) # for plotting
-# @gif
-for i = 1:Nsteps
+@gif for i = 1:Nsteps
     global u
 
-    b = M*u - .5*Δt*A*u # compute RHS
+    # compute RHS
+    b = M*u - .5*Δt*A*u
+
+    # compute BC contributions
     @. b += b_Neumann + b_Dirichlet # add BC contributions
+
+    # modify b_i = u[i]
     constrain_Dirichlet_nodes!(b,mesh,ref_elem_info,on_Dirichlet,u_Dirichlet)
+
     u = C \ b
+
     if i%5==0
         println("on iter $i out of $Nsteps")
-        # triplot(VX,VY,u,EToV)
+        triplot(VX,VY,u,EToV)
     end
-end #every 5
+end every 5
 
 # triplot(VX,VY,uexact.(VX,VY),EToV)

@@ -46,6 +46,9 @@ function unpack_mesh_info(mesh)
     EToV  = mesh.cell  # element-to-vertex mapping: each column contains vertex ids for a different element
     return VX,VY,EToV
 end
+unpack_mesh_info(mesh::Tuple) = mesh
+
+
 
 function map_triangle_pts(r,s,x,y)
     return λ(r,s)*x, λ(r,s)*y
@@ -58,6 +61,12 @@ function get_boundary_info(reference_face_indices,mesh)
     boundary_indices = findall(vec(is_point_on_boundary) .== 1)
     boundary_faces = Tuple.(findall(is_boundary_face .== 1))
     return boundary_indices,boundary_faces
+end
+function get_boundary_info(mesh::Tuple)
+    VX,VY,EToV = mesh
+    tol = 10*eps()
+    on_boundary = (@. abs(abs(VX) - 1) < tol) .| (@. abs(abs(VY) - 1) < tol)
+    boundary_indices = findall(on_boundary)
 end
 
 # loop through faces and look for matches

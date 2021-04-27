@@ -8,12 +8,9 @@ using ForwardDiff
 using UnPack  # for convenience @unpack macro
 include("./TriFEMUtils.jl") # plotting and misc routines
 
-poly = polygon_unitSquare()
-# poly = polygon_regular(5)
-# poly = polygon_Lshape()
-max_triangle_area = .05/256
-mesh = create_mesh(poly, quality_meshing=true,
-                   add_switches="penva"*string(max_triangle_area)*"q") # switches
+K1D = 128 # num elements in each direction
+mesh = uniform_tri_mesh(K1D,K1D)
+boundary_indices = get_boundary_info(mesh)
 
 # manufactured solution
 uexact(x,y) = exp(sin(1+pi*x)*sin(pi*y))
@@ -22,11 +19,6 @@ dudx(x,y) = ForwardDiff.derivative(x->uexact(x,y),x)
 dudy(x,y) = ForwardDiff.derivative(y->uexact(x,y),y)
 f(x,y) = -(ForwardDiff.derivative(x->dudx(x,y),x) +
            ForwardDiff.derivative(y->dudy(x,y),y)) # -(du^2/dx^2 + du^2/dy^2)
-
-# define Dirichlet and Neumann boundaries
-on_Neumann_boundary(x,y) = x ≈ 1 && y > 0 && y < 1 # right face x = 1 (excluding corners)
-on_Dirichlet_boundary(x,y) = !on_Neumann_boundary(x,y) # Dirichlet boundary = everywhere else
-∇u_dot_n(x,y) = dudx(x,y) # note that n = [1,0] on the Neumann face
 
 # ordering of reference element vertices
 # 3
@@ -62,6 +54,10 @@ function assemble_FE_matrix(mesh)
     num_elements = size(EToV,2) # number of elements = of columns
 
     rq,sq,wq = 1/3,1/3,2.0
+    # rq = [-2/3; 1/3; -2/3]
+    # sq = [-2/3;-2/3; 1/3]
+    # wq = 2/3 * ones(3)
+    # rq,sq,wq = NodesAndModes.quad_nodes(Tri(),3)
 
     A = spzeros(num_vertices, num_vertices)
     b = zeros(num_vertices)
@@ -83,82 +79,30 @@ function assemble_FE_matrix(mesh)
     return A,b
 end
 
-function impose_Neumann_BCs!(b,mesh,reference_elem_info)
+function impose_Dirichlet_BCs!(A,b,mesh,boundary_indices)
 
-    @unpack reference_face_indices, reference_vertices = reference_elem_info
     VX,VY,EToV = unpack_mesh_info(mesh)
-    boundary_indices, boundary_faces = get_boundary_info(reference_face_indices, mesh)
-    # contributions from Neumann BCs
-    for (f,e) in boundary_faces
-        ref_fids = reference_face_indices[f]
-        fids = EToV[ref_fids,e]
-        xf,yf = VX[fids],VY[fids]
-        x_mid,y_mid = sum(xf)/2,sum(yf)/2
-
-        if on_Neumann_boundary(x_mid,y_mid)
-            r,s = reference_vertices
-            r_mid, s_mid = sum(r[ref_fids])/2, sum(s[ref_fids])/2
-            w_mid = 2.0
-
-            ids = EToV[:,e]
-            face_length = sqrt((xf[1]-xf[2])^2 + (yf[1]-yf[2])^2)
-            b[ids] .+= face_length/2 * vec(λ(r_mid,s_mid)) * w_mid * ∇u_dot_n(x_mid,y_mid) # ∫ ∇u⋅n ϕ_i on each Neumann face
-        end
-    end
-    return b
-end
-function impose_Dirichlet_BCs!(A,b,mesh,reference_elem_info)
-
-    @unpack reference_face_indices, reference_vertices = reference_elem_info
-    VX,VY,EToV = unpack_mesh_info(mesh)
-    boundary_indices, boundary_faces = get_boundary_info(reference_face_indices, mesh)
 
     # impose Dirichlet BCs
     for i in boundary_indices
         xi,yi = VX[i],VY[i]
-        if on_Dirichlet_boundary(xi,yi)
-            b -= Vector(A[:,i]*uBC(xi,yi))
-            A[:,i] .= 0
-            A[i,:] .= 0
-            A[i,i] = 1.0
-        end
+        b -= Vector(A[:,i]*uBC(xi,yi))
+        A[:,i] .= 0
+        A[i,:] .= 0
+        A[i,i] = 1.0
     end
     for i in boundary_indices
         xi,yi = VX[i],VY[i]
-        if on_Dirichlet_boundary(xi,yi)
-            b[i] = uBC(xi,yi)
-        end
+        b[i] = uBC(xi,yi)
     end
     return A,b
 end
 
 A,b = assemble_FE_matrix(mesh)
-b   = impose_Neumann_BCs!(b,mesh,reference_elem_info)
-A,b = impose_Dirichlet_BCs!(A,b,mesh,reference_elem_info)
+A,b = impose_Dirichlet_BCs!(A,b,mesh,boundary_indices)
 u = A\b
 VX,VY,EToV = unpack_mesh_info(mesh)
 @show maximum(abs.(u .- uexact.(VX,VY)))
 triplot(VX,VY,u .- uexact.(VX,VY),EToV)
+# triplot(VX,VY,u,EToV)
 # triplot(VX,VY,uexact.(VX,VY),EToV)
-
-function compute_err(u,EToV,VX,VY)
-    num_elements = size(EToV,2)
-    rq = [-2/3; 1/3; -2/3]
-    sq = [-2/3;-2/3; 1/3]
-    wq = 2/3 * ones(3)
-    L2err_squared = 0.
-    for e = 1:num_elements # loop through all elements
-        ids = EToV[:,e] # vertex ids = local to global index maps
-        xv,yv = VX[ids],VY[ids]
-
-        # compute geometric mappings
-        J,drdx,dsdx,drdy,dsdy = compute_geometric_terms(xv,yv)
-
-        # quadrature rule
-        xq,yq = map_triangle_pts(rq,sq,xv,yv)
-
-        u_local = λ(rq,sq)*u[ids] # compute values of u_FEM at quad points
-        L2err_squared += J*sum(wq.*(u_local - uexact.(xq,yq)).^2)
-    end
-    return sqrt(L2err_squared)
-end
