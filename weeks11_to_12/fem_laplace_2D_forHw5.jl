@@ -29,11 +29,11 @@ reference_elem_info = (;reference_face_indices,reference_vertices)
 
 # define reference basis functions
 λ1(r,s) = -(r+s)/2
-λ2(r,s) = (1+r)/2
-λ3(r,s) = (1+s)/2
+λ3(r,s) = (1+r)/2
+λ2(r,s) = (1+s)/2
 λ(r,s) = [λ1.(r,s) λ2.(r,s) λ3.(r,s)]
-dλr() = [-.5 .5 0.0]
-dλs() = [-.5 0.0 .5]
+dλr() = [-.5 0.0 .5]
+dλs() = [-.5 .5 0.0]
 
 # x,y = lists of vertices
 function compute_geometric_terms(x,y)
@@ -53,7 +53,7 @@ function assemble_FE_matrix(mesh)
     num_elements = size(EToV,2) # number of elements = of columns
 
     rq,sq,wq = 1/3,1/3,2.0
-    
+
     A = spzeros(num_vertices, num_vertices)
     b = zeros(num_vertices)
     for e = 1:num_elements # loop through all elements
@@ -101,3 +101,26 @@ VX,VY,EToV = unpack_mesh_info(mesh)
 triplot(VX,VY,u .- uexact.(VX,VY),EToV)
 # triplot(VX,VY,u,EToV)
 # triplot(VX,VY,uexact.(VX,VY),EToV)
+
+
+function compute_error()
+    VX,VY,EToV = unpack_mesh_info(mesh)
+    num_elements = size(EToV,2) # number of elements = of columns
+
+    rq = [-2/3; 1/3; -2/3]
+    sq = [-2/3; -2/3; 1/3]
+    wq = 2/3 * ones(3)
+
+    for e = 1:num_elements # loop through all elements
+        ids = EToV[:,e] # vertex ids = local to global index maps
+        xv,yv = VX[ids],VY[ids]
+
+        # compute geometric mappings
+        J,drdx,dsdx,drdy,dsdy = compute_geometric_terms(xv,yv)
+
+        # quadrature rule
+        xq,yq = map_triangle_pts(rq,sq,xv,yv)
+
+        #∫f(x,y) ≈ ∑f(xi,yi)*w[i]
+    end
+end

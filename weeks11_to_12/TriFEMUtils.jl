@@ -35,7 +35,7 @@ function plotTriMesh(mesh::TriMesh)
 end
 
 function plotTriMesh(mesh)
-    @unpack VX,VY,EToV = mesh
+    VX,VY,EToV = mesh
     xmesh = Float64[]
     ymesh = Float64[]
     for vertex_ids in eachcol(EToV)
