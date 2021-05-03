@@ -52,7 +52,7 @@ function assemble_FE_matrix(mesh)
     num_vertices = length(VX)
     num_elements = size(EToV,2) # number of elements = of columns
 
-    rq,sq,wq = 1/3,1/3,2.0
+    rq,sq,wq = -1/3,-1/3,2.0
 
     A = spzeros(num_vertices, num_vertices)
     b = zeros(num_vertices)
