@@ -10,9 +10,13 @@ include("./TriFEMUtils.jl") # plotting and misc routines
 poly = polygon_unitSquare()
 # poly = polygon_regular(5)
 # poly = polygon_Lshape()
-max_triangle_area = .05/64
+num_elements_1D = 64
+max_triangle_area = 1/num_elements_1D^2
 mesh = create_mesh(poly, quality_meshing=true,
                    add_switches="penva"*string(max_triangle_area)*"q") # switches
+
+err = [0.49722443836812696, 0.184642370315069, 0.04632964124545684, 0.010186295536148499,0.0029234233106564217, 0.0007100700457359929]
+
 
 # manufactured solution
 uexact(x,y) = exp(sin(1+pi*x)*sin(pi*y))
@@ -135,6 +139,37 @@ b   = impose_Neumann_BCs!(b,mesh,reference_elem_info)
 A,b = impose_Dirichlet_BCs!(A,b,mesh,reference_elem_info)
 u = A\b
 VX,VY,EToV = unpack_mesh_info(mesh)
-@show maximum(abs.(u .- uexact.(VX,VY)))
-triplot(VX,VY,u .- uexact.(VX,VY),EToV)
+# @show maximum(abs.(u .- uexact.(VX,VY)))
+# triplot(VX,VY,u .- uexact.(VX,VY),EToV)
 # triplot(VX,VY,uexact.(VX,VY),EToV)
+
+function compute_errs(u,mesh)
+    L2err2 = 0.0
+    H1err2 = 0.0
+    rq,sq,wq = 1/3,1/3,2.0
+    rq,sq,wq = [-2/3; 1/3; -2/3], [-2/3; -2/3; 1/3], 2/3 * ones(3)
+    for e = 1:mesh.n_cell
+        ids = EToV[:,e] # vertex ids = local to global index maps
+        xv,yv = VX[ids],VY[ids]
+
+        J,drdx,dsdx,drdy,dsdy = compute_geometric_terms(xv,yv)
+
+        # quadrature rule
+        xq,yq = map_triangle_pts(rq,sq,xv,yv)
+        err = λ(rq,sq)*u[ids] - uexact.(xq,yq)
+        dudr = dλr()*u[ids]
+        duds = dλs()*u[ids]
+        deriv_err_x = drdx*dudr + dsdx*duds .- dudx.(xq,yq)
+        deriv_err_y = drdy*dudr + dsdy*duds .- dudy.(xq,yq)
+        deriv_err2 = @. deriv_err_x^2 + deriv_err_y^2
+
+        L2err2_local = J*dot(wq,err.^2)
+        L2err2 += L2err2_local
+
+        H1err2_local = J*dot(wq,deriv_err2)
+        H1err2 += H1err2_local
+    end
+    return sqrt(L2err2), sqrt(H1err2)
+end
+L2err,H1err = compute_errs(u,mesh)
+@show L2err,H1err

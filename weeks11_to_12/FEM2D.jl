@@ -52,7 +52,7 @@ function assemble_FE_matrix(mesh)
     num_vertices = length(VX)
     num_elements = size(EToV,2) # number of elements = of columns
 
-    rq,sq,wq = 1/3,1/3,2.0
+    rq,sq,wq = -1/3,-1/3,2.0
 
     A = spzeros(num_vertices, num_vertices)
     b = zeros(num_vertices)
@@ -93,65 +93,71 @@ function impose_Dirichlet_BCs!(A,b,mesh,boundary_indices)
     return A,b
 end
 
-A,b = assemble_FE_matrix(mesh)
-A,b = impose_Dirichlet_BCs!(A,b,mesh,boundary_indices)
-u = A\b
-VX,VY,EToV = unpack_mesh_info(mesh)
-@show maximum(abs.(u .- uexact.(VX,VY)))
-triplot(VX,VY,u .- uexact.(VX,VY),EToV)
-# triplot(VX,VY,u,EToV)
-# triplot(VX,VY,uexact.(VX,VY),EToV)
 
-function compute_errs(u,mesh)
-    VX,VY,EToV = mesh
-    L2err2 = 0.0
-    H1err2 = 0.0
-    rq,sq,wq = 1/3,1/3,2.0
-    rq,sq,wq = [-2/3; 1/3; -2/3], [-2/3; -2/3; 1/3], 2/3 * ones(3)
-    for e = 1:size(EToV,2)
+
+function compute_error(u,mesh)
+    VX,VY,EToV = unpack_mesh_info(mesh)
+    num_elements = size(EToV,2) # number of elements = of columns
+
+    rq = [-2/3; 1/3; -2/3]
+    sq = [-2/3; -2/3; 1/3]
+    wq = 2/3 * ones(3)
+    L2err_squared = 0
+    H1err_squared = 0 
+    for e = 1:num_elements # loop through all elements
         ids = EToV[:,e] # vertex ids = local to global index maps
         xv,yv = VX[ids],VY[ids]
+        switch = 1
+     
 
+        # compute geometric mappings
         J,drdx,dsdx,drdy,dsdy = compute_geometric_terms(xv,yv)
 
         # quadrature rule
         xq,yq = map_triangle_pts(rq,sq,xv,yv)
-        err = λ(rq,sq)*u[ids] - uexact.(xq,yq)
-        dudr = dλr()*u[ids]
-        duds = dλs()*u[ids]
-        deriv_err_x = drdx*dudr + dsdx*duds .- dudx.(xq,yq)
-        deriv_err_y = drdy*dudr + dsdy*duds .- dudy.(xq,yq)
-        deriv_err2 = @. deriv_err_x^2 + deriv_err_y^2
+        u_local = λ(rq,sq)*u[ids]   #Using linear interpolation in order to obtain u at the gauss points
+        
+        #L2 Error = sqrt(∫(u-u_exact)^2 dA) = sqrt(Σ J∫(u-u_exact)^2 dD')
+        L2err_squared += J*sum(wq.*(switch*u_local - uexact.(xq,yq)).^2)
 
-        L2err2_local = J*dot(wq,err.^2)
-        L2err2 += L2err2_local
+        #H1 Error  = sqrt(∫(u'-u_exact')^2 dA)
+        dudr_l = dλr()*u[ids]
+        duds_l = dλs()*u[ids]
+        dudx_local = dudr_l*drdx + duds_l*dsdx
+        dudy_local = dudr_l*drdy + duds_l*dsdy
 
-        H1err2_local = J*dot(wq,deriv_err2)
-        H1err2 += H1err2_local
+        H1err_squared += J*sum(wq.*(switch*dudx_local .- dudx.(xq,yq)).^2 .+ wq.*(switch*dudy_local .- dudy.(xq,yq)).^2)
+
     end
-    return sqrt(L2err2), sqrt(H1err2)
+    L2err = sqrt(L2err_squared)
+    H1err = sqrt(H1err_squared)
+    return L2err, H1err
 end
-L2err,H1err = compute_errs(u,mesh)
-@show L2err,H1err
 
-# function compute_error()
-#     VX,VY,EToV = unpack_mesh_info(mesh)
-#     num_elements = size(EToV,2) # number of elements = of columns
-#
-#     rq = [-2/3; 1/3; -2/3]
-#     sq = [-2/3; -2/3; 1/3]
-#     wq = 2/3 * ones(3)
-#
-#     for e = 1:num_elements # loop through all elements
-#         ids = EToV[:,e] # vertex ids = local to global index maps
-#         xv,yv = VX[ids],VY[ids]
-#
-#         # compute geometric mappings
-#         J,drdx,dsdx,drdy,dsdy = compute_geometric_terms(xv,yv)
-#
-#         # quadrature rule
-#         xq,yq = map_triangle_pts(rq,sq,xv,yv)
-#
-#         #∫f(x,y) ≈ ∑f(xi,yi)*w[i]
-#     end
-# end
+
+K1D = [16, 16*2,16*2^2,16*2^3,16*2^4]
+hvec = [1/16, 1/(16*2),1/(16*2^2),1/(16*2^3),1/(16*2^4)]
+L2_err = zeros(length(K1D))
+H1_err = zeros(length(K1D))
+for (i,Ksize) in enumerate(K1D)
+    mesh = uniform_tri_mesh(Ksize,Ksize)
+    boundary_indices = get_boundary_info(mesh)
+
+    A,b = assemble_FE_matrix(mesh)
+    A,b = impose_Dirichlet_BCs!(A,b,mesh,boundary_indices)
+    u = A\b
+    VX,VY,EToV = unpack_mesh_info(mesh)
+    # @show maximum(abs.(u .- uexact.(VX,VY)))
+    # triplot(VX,VY,u .- uexact.(VX,VY),EToV)
+    # triplot(VX,VY,u,EToV)
+    # triplot(VX,VY,uexact.(VX,VY),EToV)
+    L2,H1 = compute_error(u,mesh)
+    L2_err[i] = L2
+    H1_err[i] = H1
+end
+
+plot(hvec,L2_err,marker=:dot,label="L2 Norm")
+plot!(hvec,H1_err,marker=:dot,label="H1 Norm")
+plot!(hvec,hvec,linestyle=:dash,label="O(h)")
+plot!(hvec,hvec.^2,linestyle=:dash,label="O(h^2)")
+plot!(xaxis=:log,yaxis=:log,legend=:bottomright)

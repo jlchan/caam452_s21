@@ -4,7 +4,7 @@ using Plots
 
 "This routine solves the periodic wave equation using finite volumes."
 
-m = 200 # number of points
+m = 400 # number of points
 
 # define spatial grid
 xv = LinRange(-1,1,m+2)
@@ -20,17 +20,25 @@ u0(x) = 0.
 
 # finite volume flux function
 function f(pL,uL,pR,uR)
-    # transform to characteristic variables V = inv(R)*U
+    λ, R = eigen([0 1;1 0]);
+    vL = R\[pL;uL]
+    vR = R\[pR;uR]
+    flux = R*(max.(λ,0).*vL + min.(λ,0).*vR)
+    return flux[1],flux[2]
+end
+# slightly more expanded analytical flux
+function f(pL,uL,pR,uR)
     # v1L = -pL+uL
     v2L = pL+uL
-    v1R = pR-uR # ??
+    v1R = -pR+uR
     # v2R = pR+uR
-    v1 = v1R # right characteristic
-    v2 = v2L # left characteristic
-    pflux = .5*(-v1 + v2)
-    uflux = .5*(v1 + v2)
+    v1 = -v1R
+    v2 = v2L
+    pflux = .5*(-v1+v2)
+    uflux = .5*(v1+v2)
     return pflux, uflux
 end
+# cheapest form
 function f(pL,uL,pR,uR)
     pflux = .5*(uL+uR) - .5*(pR-pL)
     uflux = .5*(pL+pR) - .5*(uR-uL)
@@ -51,7 +59,7 @@ unorm = zeros(Nsteps)
 pflux = zeros(m+2)
 uflux = zeros(m+2)
 @gif for k = 1:Nsteps
-    global u,f
+    # global u,f
     for i = 1:m+2 # loop over cell interfaces
         left = index_left[i]
         right = index_right[i]
@@ -59,8 +67,10 @@ uflux = zeros(m+2)
         pflux[i] = flux_i[1]
         uflux[i] = flux_i[2]
     end
-    p .= p .- Δt/Δx .* diff(pflux)
-    u .= u .- Δt/Δx .* diff(uflux)
+    for i = 1:m+1
+        p[i] = p[i] - Δt/Δx * (pflux[i+1]-pflux[i])
+        u[i] = u[i] - Δt/Δx * (uflux[i+1]-uflux[i])
+    end
 
     if k % interval==0
         plot(x,p,linewiΔth=2,legend=false,title="Solution at time $(k*Δt)",ylims=(-1.5,1.5))
